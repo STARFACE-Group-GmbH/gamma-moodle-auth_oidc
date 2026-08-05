@@ -27,7 +27,7 @@
 // phpcs:disable moodle.Files.LangFilesOrdering.IncorrectOrder
 // phpcs:disable moodle.Files.LangFilesOrdering.UnexpectedComment
 
-$string['pluginname'] = 'OpenID Connect';
+$string['pluginname'] = 'OpenID Connect (Gamma)';
 $string['auth_oidcdescription'] = 'Wtyczka OpenID Connect udostępnia funkcję rejestracji jednokrotnej przy użyciu dostawców tożsamości, których można skonfigurować.';
 $string['cfg_authendpoint_key'] = 'Punkt końcowy autoryzacji';
 $string['cfg_authendpoint_desc'] = 'Identyfikator URI punktu końcowego autoryzacji od dostawcy tożsamości do wykorzystania.';

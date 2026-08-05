@@ -27,7 +27,7 @@
 // phpcs:disable moodle.Files.LangFilesOrdering.IncorrectOrder
 // phpcs:disable moodle.Files.LangFilesOrdering.UnexpectedComment
 
-$string['pluginname'] = 'OpenID Connect';
+$string['pluginname'] = 'OpenID Connect (Gamma)';
 $string['auth_oidcdescription'] = 'De OpenID Connect-plugin verschaft de mogelijkheid voor eenmalige aanmelding met configureerbare identiteitsproviders.';
 $string['cfg_authendpoint_key'] = 'Autorisatie-eindpunt';
 $string['cfg_authendpoint_desc'] = 'De URI van het token-eindpunt van je identiteitsprovider die je moet gebruiken.';
