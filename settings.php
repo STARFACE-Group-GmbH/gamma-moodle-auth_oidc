@@ -250,6 +250,39 @@ if ($hassiteconfig) {
     $tokenendpointsetting->set_updatedcallback('auth_oidc_reset_app_tokens');
     $applicationsettings->add($tokenendpointsetting);
 
+    // ID token validation heading.
+    $applicationsettings->add(new admin_setting_heading(
+        'auth_oidc/application_idtokenvalidation_heading',
+        get_string('settings_section_idtoken_validation', 'auth_oidc'),
+        ''
+    ));
+
+    // ID token signature verification.
+    $applicationsettings->add(new admin_setting_configcheckbox(
+        'auth_oidc/verifyidtokensignature',
+        get_string('verifyidtokensignature', 'auth_oidc'),
+        get_string('verifyidtokensignature_help', 'auth_oidc'),
+        0
+    ));
+
+    // JWKS endpoint.
+    $applicationsettings->add(new admin_setting_configtext(
+        'auth_oidc/jwksuri',
+        get_string('jwksuri', 'auth_oidc'),
+        get_string('jwksuri_help', 'auth_oidc'),
+        '',
+        PARAM_URL
+    ));
+
+    // Expected issuer.
+    $applicationsettings->add(new admin_setting_configtext(
+        'auth_oidc/idtokenissuer',
+        get_string('idtokenissuer', 'auth_oidc'),
+        get_string('idtokenissuer_help', 'auth_oidc'),
+        '',
+        PARAM_URL
+    ));
+
     // Other parameters heading.
     $applicationsettings->add(new admin_setting_heading(
         'auth_oidc/application_otherparams_heading',
@@ -378,6 +411,8 @@ if ($hassiteconfig) {
         'neq',
         AUTH_OIDC_AUTH_CERT_SOURCE_FILE
     );
+    $applicationsettings->hide_if('auth_oidc/jwksuri', 'auth_oidc/verifyidtokensignature', 'notchecked');
+    $applicationsettings->hide_if('auth_oidc/idtokenissuer', 'auth_oidc/verifyidtokensignature', 'notchecked');
 
     // Conditional display: secret expiry recipients only for non-OTHER Microsoft IdP using secret auth.
     if (auth_oidc_is_local_365_installed()) {
