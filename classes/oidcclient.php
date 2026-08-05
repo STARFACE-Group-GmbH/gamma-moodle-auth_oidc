@@ -179,9 +179,20 @@ class oidcclient {
         array $extraparams = [],
         bool $selectaccount = false
     ) {
-        global $SESSION;
-
         $nonce = 'N' . uniqid();
+
+        // PKCE (RFC 7636): when enabled, generate a per-request code verifier and S256 challenge.
+        // The verifier is persisted in the state DB row (keyed by state), not the session, because
+        // the IdP posts the response back cross-site (response_mode=form_post) and a SameSite=Lax
+        // session cookie would not be sent on that POST. It is later read back and sent with the
+        // token request so the IdP can prove the exchange comes from the same client.
+        $codeverifier = null;
+        $codechallenge = null;
+        if (get_config('auth_oidc', 'enablepkce')) {
+            [$codeverifier, $codechallenge] = $this->generate_pkce_pair();
+        }
+
+        $state = $this->getnewstate($nonce, $stateparams, $codeverifier);
 
         $params = [
             'response_type' => 'code',
@@ -189,9 +200,14 @@ class oidcclient {
             'scope' => $this->scope,
             'nonce' => $nonce,
             'response_mode' => 'form_post',
-            'state' => $this->getnewstate($nonce, $stateparams),
+            'state' => $state,
             'redirect_uri' => $this->redirecturi,
         ];
+
+        if ($codechallenge !== null) {
+            $params['code_challenge'] = $codechallenge;
+            $params['code_challenge_method'] = 'S256';
+        }
 
         if (get_config('auth_oidc', 'idptype') != AUTH_OIDC_IDP_TYPE_MICROSOFT_IDENTITY_PLATFORM) {
             $params['resource'] = $this->tokenresource;
@@ -246,9 +262,10 @@ class oidcclient {
      *
      * @param string $nonce The generated nonce value.
      * @param array $stateparams
+     * @param string|null $codeverifier PKCE code verifier to persist with the state, if any.
      * @return string The new state value.
      */
-    protected function getnewstate($nonce, array $stateparams = []) {
+    protected function getnewstate($nonce, array $stateparams = [], $codeverifier = null) {
         global $DB;
         $staterec = new \stdClass();
         $staterec->sesskey = sesskey();
@@ -256,8 +273,23 @@ class oidcclient {
         $staterec->nonce = $nonce;
         $staterec->timecreated = time();
         $staterec->additionaldata = serialize($stateparams);
+        $staterec->codeverifier = $codeverifier;
         $DB->insert_record('auth_oidc_state', $staterec);
         return $staterec->state;
+    }
+
+    /**
+     * Generate a PKCE code verifier and its S256 code challenge (RFC 7636).
+     *
+     * @return array [code_verifier, code_challenge]
+     */
+    protected function generate_pkce_pair(): array {
+        // Verifier: 43-128 chars from the unreserved set. random_string() returns [A-Za-z0-9],
+        // all of which are unreserved, so no extra encoding is needed.
+        $codeverifier = random_string(96);
+        // Challenge: BASE64URL(SHA256(verifier)) with padding stripped.
+        $codechallenge = rtrim(strtr(base64_encode(hash('sha256', $codeverifier, true)), '+/', '-_'), '=');
+        return [$codeverifier, $codechallenge];
     }
 
     /**
@@ -343,9 +375,10 @@ class oidcclient {
      * Exchange an authorization code for an access token.
      *
      * @param string $code An authorization code.
+     * @param string|null $codeverifier PKCE code verifier matching the challenge sent in the auth request.
      * @return array Received parameters.
      */
-    public function tokenrequest($code) {
+    public function tokenrequest($code, $codeverifier = null) {
         if (empty($this->endpoints['token'])) {
             throw new moodle_exception('erroroidcclientnotokenendpoint', 'auth_oidc');
         }
@@ -356,6 +389,11 @@ class oidcclient {
             'code' => $code,
             'redirect_uri' => $this->redirecturi,
         ];
+
+        // PKCE: prove possession of the verifier matching the challenge sent in the auth request.
+        if (!empty($codeverifier)) {
+            $params['code_verifier'] = $codeverifier;
+        }
 
         switch (get_config('auth_oidc', 'clientauthmethod')) {
             case AUTH_OIDC_AUTH_METHOD_CERTIFICATE:

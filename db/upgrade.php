@@ -586,6 +586,16 @@ function xmldb_auth_oidc_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2024100730.01, 'auth', 'oidc');
     }
 
+    if ($oldversion < 2024100735.50) {
+        // Gamma: add PKCE code verifier storage to the state table.
+        $table = new xmldb_table('auth_oidc_state');
+        $field = new xmldb_field('codeverifier', XMLDB_TYPE_CHAR, '128', null, null, null, null, 'additionaldata');
+        if (!$dbman->field_exists($table, $field)) {
+            $dbman->add_field($table, $field);
+        }
+        upgrade_plugin_savepoint(true, 2024100735.50, 'auth', 'oidc');
+    }
+
     return true;
 }
 
