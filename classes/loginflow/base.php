@@ -26,6 +26,7 @@
 
 namespace auth_oidc\loginflow;
 
+use auth_oidc\idtoken_validator;
 use auth_oidc\jwt;
 use auth_oidc\oidcclient;
 use auth_oidc\utils;
@@ -365,6 +366,18 @@ class base {
     }
 
     /**
+     * Get an HTTP client to use.
+     *
+     * @return \auth_oidc\httpclientinterface
+     */
+    protected function get_httpclient(): \auth_oidc\httpclientinterface {
+        if (empty($this->httpclient) || !($this->httpclient instanceof \auth_oidc\httpclientinterface)) {
+            $this->httpclient = new \auth_oidc\httpclient();
+        }
+        return $this->httpclient;
+    }
+
+    /**
      * Handle OIDC disconnection from Moodle account.
      *
      * @param bool $justremovetokens If true, just remove the stored OIDC tokens for the user; otherwise, revert login methods.
@@ -575,7 +588,7 @@ class base {
      */
     protected function process_idtoken($idtoken, $orignonce = '') {
         // Decode and verify idtoken.
-        $idtoken = jwt::instance_from_encoded($idtoken);
+        $idtoken = idtoken_validator::validate($idtoken, $this->config, $this->get_httpclient());
         $sub = $idtoken->claim('sub');
         if (empty($sub)) {
             utils::debug('Invalid idtoken', __METHOD__, $idtoken);
