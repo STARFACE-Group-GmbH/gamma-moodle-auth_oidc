@@ -183,6 +183,7 @@ class authcode extends base {
                 if (!empty($state)) {
                     $requestparams = [
                         'state' => $state,
+                        'error' => optional_param('error', '', PARAM_TEXT),
                         'error_description' => optional_param('error_description', '', PARAM_TEXT),
                     ];
                     $this->handlecertadminconsentresponse($requestparams);
@@ -199,6 +200,7 @@ class authcode extends base {
             $requestparams = [
                 'state' => $state,
                 'code' => $code,
+                'error' => optional_param('error', '', PARAM_TEXT),
                 'error_description' => optional_param('error_description', '', PARAM_TEXT),
             ];
             // Response from OP.
@@ -428,7 +430,12 @@ class authcode extends base {
 
         if (!empty($authparams['error_description'])) {
             utils::debug('Authorization error.', __METHOD__, $authparams);
-            redirect($CFG->wwwroot, get_string('errorauthgeneral', 'auth_oidc'), null, notification::NOTIFY_ERROR);
+            $errordetail = $authparams['error_description'];
+            if (!empty($authparams['error'])) {
+                $errordetail = $authparams['error'] . ': ' . $errordetail;
+            }
+            redirect($CFG->wwwroot, get_string('errorauthfromidp', 'auth_oidc', $errordetail), null,
+                notification::NOTIFY_ERROR);
         }
 
         if (!isset($authparams['state'])) {
@@ -515,7 +522,12 @@ class authcode extends base {
 
         if (!empty($authparams['error_description'])) {
             utils::debug('Authorization error.', __METHOD__, $authparams);
-            redirect($CFG->wwwroot, get_string('errorauthgeneral', 'auth_oidc'), null, notification::NOTIFY_ERROR);
+            $errordetail = $authparams['error_description'];
+            if (!empty($authparams['error'])) {
+                $errordetail = $authparams['error'] . ': ' . $errordetail;
+            }
+            redirect($CFG->wwwroot, get_string('errorauthfromidp', 'auth_oidc', $errordetail), null,
+                notification::NOTIFY_ERROR);
         }
 
         if (!isset($authparams['code'])) {
@@ -548,11 +560,13 @@ class authcode extends base {
             }
         }
         $SESSION->stateadditionaldata = $additionaldata;
+        // Read the PKCE code verifier stored with this state row before it is deleted (RFC 7636).
+        $codeverifier = $staterec->codeverifier ?? null;
         $DB->delete_records('auth_oidc_state', ['id' => $staterec->id]);
 
         // Get token from auth code.
         $client = $this->get_oidcclient();
-        $tokenparams = $client->tokenrequest($authparams['code']);
+        $tokenparams = $client->tokenrequest($authparams['code'], $codeverifier);
         if (!isset($tokenparams['id_token'])) {
             throw new moodle_exception('errorauthnoidtoken', 'auth_oidc');
         }

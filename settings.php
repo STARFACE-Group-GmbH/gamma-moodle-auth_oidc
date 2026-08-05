@@ -287,6 +287,15 @@ if ($hassiteconfig) {
     $oidcscopesetting->set_updatedcallback('auth_oidc_reset_app_tokens');
     $applicationsettings->add($oidcscopesetting);
 
+    // PKCE (RFC 7636). When enabled, the authorization code flow sends an S256 code challenge
+    // and the matching verifier on token exchange. Default on.
+    $applicationsettings->add(new admin_setting_configcheckbox(
+        'auth_oidc/enablepkce',
+        get_string('cfg_enablepkce_key', 'auth_oidc'),
+        get_string('cfg_enablepkce_desc', 'auth_oidc'),
+        1
+    ));
+
     // Secret expiry notification (only when local_o365 is installed).
     if (auth_oidc_is_local_365_installed()) {
         $applicationsettings->add(new auth_oidc_admin_setting_section_heading(
