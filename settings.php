@@ -648,6 +648,20 @@ if ($hassiteconfig) {
 
     $settings->hide_if('auth_oidc/logouturi', 'auth_oidc/single_sign_off', 'notchecked');
 
+    // Let the user confirm single sign-out at the IdP (generic IdP only). When enabled, the
+    // id_token_hint is omitted so the IdP prompts the user to decide whether to end their SSO
+    // session; client_id is sent instead so the post-logout redirect is still accepted.
+    $settings->add(
+        new admin_setting_configcheckbox(
+            'auth_oidc/single_sign_off_confirm',
+            get_string('cfg_signoffconfirm_key', 'auth_oidc'),
+            get_string('cfg_signoffconfirm_desc', 'auth_oidc'),
+            '0'
+        )
+    );
+
+    $settings->hide_if('auth_oidc/single_sign_off_confirm', 'auth_oidc/single_sign_off', 'notchecked');
+
     // Front channel logout URL.
     $settings->add(
         new auth_oidc_admin_setting_redirecturi(
