@@ -191,6 +191,8 @@ $string['cfg_userrestrictionscasesensitive_desc'] = 'This controls if the "/i" o
 $string['cfg_signoffintegration_key'] = 'Single Sign Out (from Moodle to IdP)';
 $string['cfg_signoffintegration_desc'] = 'If the option is enabled, when a Moodle user connected to the configured IdP logs out of Moodle, the integration will trigger a request at the logout endpiont below, attempting to log the user off from IdP as well.<br/>
 Note for integration with Microsoft Entra ID, the URL of Moodle site ({$a}) needs to be added as a redirect URI in the Azure app created for Moodle and Microsoft 365 integration.';
+$string['cfg_signoffconfirm_key'] = 'Confirm single sign-out at IdP';
+$string['cfg_signoffconfirm_desc'] = 'Only applies to a generic (non-Microsoft) IdP. When enabled, logging out of Moodle sends the user to the IdP logout endpoint without an id_token_hint, so the IdP asks the user to confirm ending their SSO session. This lets the user decide whether to end the shared SSO session or only log out of Moodle. When disabled (default), logout is silent and the SSO session is ended without a prompt.';
 $string['cfg_logoutendpoint_key'] = 'IdP Logout Endpoint';
 $string['cfg_logoutendpoint_desc'] = 'The URI of the logout endpoint from your IdP to use.';
 $string['cfg_frontchannellogouturl_key'] = 'Front-channel Logout URL';

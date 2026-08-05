@@ -349,9 +349,15 @@ class auth_plugin_oidc extends \auth_plugin_base {
                 if (!$logouturl) {
                     return null;
                 }
-                $token = $DB->get_record('auth_oidc_token', ['userid' => $user->id]);
-                if ($token) {
-                    $params['id_token_hint'] = $token->idtoken;
+                if (get_config('auth_oidc', 'single_sign_off_confirm')) {
+                    // Omit id_token_hint so the IdP prompts the user to confirm ending their SSO
+                    // session. Send client_id instead so the post_logout_redirect_uri stays valid.
+                    $params['client_id'] = get_config('auth_oidc', 'clientid');
+                } else {
+                    $token = $DB->get_record('auth_oidc_token', ['userid' => $user->id]);
+                    if ($token) {
+                        $params['id_token_hint'] = $token->idtoken;
+                    }
                 }
                 $url = new url($logouturl, $params);
                 return $url->out(false);
