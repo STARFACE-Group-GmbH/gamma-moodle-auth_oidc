@@ -9,23 +9,50 @@ across 66 files and 4 database tables, turning every upstream merge into a confl
 
 ## What we do here
 
-We add functionality that upstream lacks, or that upstream implements for Microsoft
-Entra ID only, so the plugin can authenticate against Gamma SSO — a generic OIDC
-provider (Keycloak) rather than Microsoft Entra ID:
+The upstream plugin already authenticates against Keycloak. What was missing was PKCE,
+which Gamma SSO requires, and control over what a Moodle logout does to the shared SSO
+session. On top of that we added ID token signature verification as an optional security
+measure, and a label so it is obvious which plugin an instance is running.
 
-- PKCE (S256) in the authorization code flow
-- ID token signature verification
-- optional user confirmation on single sign-out
-- Gamma label in the plugin and authentication lists
+## Features
+
+**1. Gamma branding**
+`pluginname` set to "OpenID Connect (Gamma)" across the 11 language files. No functional
+code — a pure string substitution, so the plugin can be told apart from an unmodified
+upstream install in the plugin and authentication lists.
+
+**2. PKCE S256**
+RFC 7636 PKCE added to the authorization code flow (`classes/oidcclient.php`,
+`classes/loginflow/authcode.php`), controlled by the new `enablepkce` admin setting
+(default on). The code verifier is stored in the `auth_oidc_state.codeverifier` database
+column rather than in the session, because the IdP replies with `response_mode=form_post`
+and a `SameSite=Lax` cookie is not sent along with that cross-site POST. Schema change
+via `db/install.xml` and `db/upgrade.php`. IdP error responses (`error`,
+`error_description`) are now shown to the user instead of a generic message.
+
+**3. SSO logout confirmation**
+New `single_sign_off_confirm` admin setting (default off, generic IdP only, gated under
+`single_sign_off`). When enabled, `id_token_hint` is omitted and `client_id` is sent
+instead, so the IdP asks the user whether to end the entire SSO session. The previous
+behaviour — silent logout with `id_token_hint` — remains the default. Change confined to
+`auth.php` (`build_logout_url`) plus setting and language strings.
+
+**4. JWT signature verification**
+New class `classes/idtoken_validator.php` validates ID token signatures against the IdP
+JWKS endpoint. The approach is taken from `microsoft/moodle-local_o365` (`lib.php`, JWKS
+fetch for the Teams tab flow), where it is already in production but implemented for a
+different context; here it is adapted to the regular authorization code flow. JWKS keys
+are cached through the Moodle cache API with a configurable TTL. Covered by
+`tests/idtoken_validator_test.php`.
 
 ## Source
 
 | | |
 |---|---|
 | Original repository | https://github.com/microsoft/moodle-auth_oidc |
+| **Moodle we run** | **4.5.11** — the Academy's installation, and the version this fork targets |
 | Base of our release line | tag `v4.5.7` (on upstream branch `MOODLE_405_STABLE`) |
-| Target Moodle | 4.5.11 |
-| Licence | GPLv3, unchanged — see the original README below |
+| Minimum Moodle required by the plugin | 4.5 (`$plugin->requires = 2024100700`) |
 
 Upstream `master` requires Moodle 5.2 or later and is therefore not usable for us,
 which is why our release line branches off the 4.5 tag.
@@ -40,15 +67,27 @@ which is why our release line branches off the 4.5 tag.
 
 ## Branch model
 
+> **Default branch: `release/4.5`** — in both `origin` and `gh-partner`. Clone it, build
+> from it, review it. It is the 4.5 line because the Academy runs **Moodle 4.5.11**, and
+> upstream's newer plugin releases (`master`, `MOODLE_502_STABLE`) require Moodle 5.2 or
+> later. There is deliberately no `main`; see below.
+
 ```
 upstream/MOODLE_405_STABLE ──v4.5.7──┐
                                      │
                      release/4.5 ────┴──●──●──●──▶   our changes, release tags live here
+                                        ┊  ┊  ┊
+                                        ┊  ┊  ┊       cherry-pick -x, only when the
+                                        ▼  ▼  ▼       Academy upgrades Moodle
+upstream/MOODLE_502_STABLE ──v5.2.0──┐
+                                     │
+                     release/5.2 ────┴──●──●──●──▶   same commits, new upstream base
 ```
 
-One release branch per Moodle line. `release/4.5` is based on tag `v4.5.7`, carries all
-our commits, is the branch the local dev server mounts, and is the branch the partner
-builds from. It is also the default branch in both remotes.
+One release branch per Moodle line, named after that line. `release/4.5` is based on tag
+`v4.5.7`, carries all our commits, is the branch the local dev server mounts, and is the
+branch the partner builds from. A second line is only created when it is actually needed —
+see "Adopting a new Moodle line" below for the exact procedure.
 
 There is deliberately **no `main`**. Upstream's stable lines diverge — `v4.5.7` is not an
 ancestor of upstream `master`, and `MOODLE_405_STABLE` was never merged into
@@ -121,17 +160,55 @@ our upgrade blocks below upstream's.
 
 ## Adopting a new Moodle line
 
-When the Academy moves to a newer Moodle, branch a new release line from the matching
-upstream tag and cherry-pick our commits forward. `-x` records the original hash in the
-message, which keeps the two lines traceable.
+This is what has to happen when the Academy upgrades Moodle and we therefore want the
+newest upstream plugin release as our base. Nothing here needs doing in advance — the
+work is deliberately deferred until the Moodle upgrade is real.
 
+**1. Pick the upstream tag that matches the target Moodle.** Upstream ships one stable
+branch per Moodle line (`MOODLE_502_STABLE` for Moodle 5.2, and so on) with tags such as
+`v5.2.0`. Check `$plugin->requires` in that tag against the target Moodle version.
+
+**2. Branch the new release line off that tag.**
 ```bash
+git fetch upstream --tags
 git switch -c release/5.2 v5.2.0
-git cherry-pick -x <our commits from release/4.5>
 ```
 
-Both release branches then live side by side; a fix that applies to both gets
-cherry-picked, not merged.
+**3. Cherry-pick our commits forward, oldest first.** `-x` records the original hash in
+the message, so both lines stay traceable and it is obvious which Gamma change is which.
+```bash
+git log --oneline --reverse v4.5.7..release/4.5      # our commits, in order
+git cherry-pick -x <hash> <hash> <hash> ...
+```
+
+Expect conflicts in `version.php` and `db/upgrade.php` — resolve them by applying the
+decimal Gamma step to the *new* upstream base (`v5.2.0`'s number plus `.50`), and by
+placing our upgrade blocks after upstream's. The `README.md` commit conflicts too, since
+upstream's README differs between lines; keep our part and re-attach it above the new
+original.
+
+**4. Verify against the new Moodle.** The API changes between Moodle lines are what makes
+this a cherry-pick rather than a merge: `\core\url` and `\core\context` namespacing,
+changed hook signatures, and `db/upgrade.php` expectations all shift. `postlogout_hook`
+and the login flow classes we touch are the parts to re-test — plus the PHPUnit suite
+including `tests/idtoken_validator_test.php`.
+
+**5. Switch the default branch** in `origin` and `gh-partner` to the new line once it is
+the one being deployed, and say so in this README.
+
+Both release branches then live side by side. A fix that applies to both gets
+cherry-picked into each; the lines are never merged into one another, because upstream's
+stable lines are not ancestors of each other.
+
+**Estimating the effort:** it scales with the number of our commits (currently four
+functional ones) and with how far apart the two upstream bases are, not with the size of
+the Moodle upgrade. The Gamma changes are confined to `classes/oidcclient.php`,
+`classes/loginflow/authcode.php`, `classes/loginflow/base.php`, `classes/idtoken_validator.php`,
+`auth.php`, `settings.php`, `db/*` and the language files — a diff against upstream shows
+the full surface:
+```bash
+git diff v4.5.7..release/4.5 --stat
+```
 
 ## Building a release
 
@@ -149,10 +226,6 @@ git push origin gamma-4.5.7+2 && git push gh-partner gamma-4.5.7+2
 `gh-partner` is pushed **manually and deliberately**; there is no automated mirroring job, so
 the partner only ever sees states we consider ready rather than every work-in-progress
 commit.
-
-`git push gh-partner --mirror` is for the initial push only. Do not use it afterwards:
-`--mirror` deletes every ref on the remote that does not exist locally, including review
-branches the partner creates there. Regular pushes never delete anything.
 
 ---
 

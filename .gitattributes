@@ -1,0 +1,4 @@
+# Kept out of `git archive` output (release ZIPs) and out of GitHub's generated
+# tarballs. tests/ stays in on purpose: the partner's CI runs it.
+/.github        export-ignore
+/.gitattributes export-ignore
