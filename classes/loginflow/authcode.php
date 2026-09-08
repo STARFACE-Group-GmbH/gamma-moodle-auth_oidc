@@ -293,13 +293,12 @@ class authcode extends base {
         global $CFG, $DB, $SESSION;
 
         if (!empty($authparams['error_description'])) {
+            // The IdP's error/error_description is deliberately not shown to the user here:
+            // this branch is reachable via a plain unauthenticated GET, before state is
+            // validated, so any caller-supplied text would appear verbatim in an official
+            // Moodle error banner. Full detail is still available in the Moodle log below.
             utils::debug('Authorization error.', __METHOD__, $authparams);
-            $errordetail = $authparams['error_description'];
-            if (!empty($authparams['error'])) {
-                $errordetail = $authparams['error'] . ': ' . $errordetail;
-            }
-            redirect($CFG->wwwroot, get_string('errorauthfromidp', 'auth_oidc', $errordetail), null,
-                notification::NOTIFY_ERROR);
+            redirect($CFG->wwwroot, get_string('errorauthgeneral', 'auth_oidc'), null, notification::NOTIFY_ERROR);
         }
 
         if (!isset($authparams['state'])) {
@@ -356,13 +355,12 @@ class authcode extends base {
         $sid = optional_param('session_state', '', PARAM_TEXT);
 
         if (!empty($authparams['error_description'])) {
+            // The IdP's error/error_description is deliberately not shown to the user here:
+            // this branch is reachable via a plain unauthenticated GET, before state is
+            // validated, so any caller-supplied text would appear verbatim in an official
+            // Moodle error banner. Full detail is still available in the Moodle log below.
             utils::debug('Authorization error.', __METHOD__, $authparams);
-            $errordetail = $authparams['error_description'];
-            if (!empty($authparams['error'])) {
-                $errordetail = $authparams['error'] . ': ' . $errordetail;
-            }
-            redirect($CFG->wwwroot, get_string('errorauthfromidp', 'auth_oidc', $errordetail), null,
-                notification::NOTIFY_ERROR);
+            redirect($CFG->wwwroot, get_string('errorauthgeneral', 'auth_oidc'), null, notification::NOTIFY_ERROR);
         }
 
         if (!isset($authparams['code'])) {

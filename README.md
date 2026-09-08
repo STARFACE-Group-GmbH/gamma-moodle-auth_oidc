@@ -17,9 +17,12 @@ measure, and a label so it is obvious which plugin an instance is running.
 ## Features
 
 **1. Gamma branding**
-`pluginname` set to "OpenID Connect (Gamma)" across the 11 language files. No functional
-code — a pure string substitution, so the plugin can be told apart from an unmodified
-upstream install in the plugin and authentication lists.
+`pluginname` set to "OpenID Connect (Gamma)". No functional code — a pure string
+substitution, so the plugin can be told apart from an unmodified upstream install in the
+plugin and authentication lists.
+
+Only actually shows in English: any other installed language pack ships its own AMOS
+`auth_oidc` translation, which overrides ours.
 
 **2. PKCE S256**
 RFC 7636 PKCE added to the authorization code flow (`classes/oidcclient.php`,
@@ -28,7 +31,10 @@ RFC 7636 PKCE added to the authorization code flow (`classes/oidcclient.php`,
 column rather than in the session, because the IdP replies with `response_mode=form_post`
 and a `SameSite=Lax` cookie is not sent along with that cross-site POST. Schema change
 via `db/install.xml` and `db/upgrade.php`. IdP error responses (`error`,
-`error_description`) are now shown to the user instead of a generic message.
+`error_description`) are never shown to the user — that branch is reachable via a plain
+unauthenticated GET, before state is validated, so attacker-chosen text would appear
+verbatim in an official Moodle error banner. A generic message (`errorauthgeneral`) is
+shown instead; the detail still goes to the Moodle log via `utils::debug()`.
 
 **3. SSO logout confirmation**
 New `single_sign_off_confirm` admin setting (default off, generic IdP only, gated under
@@ -42,8 +48,22 @@ New class `classes/idtoken_validator.php` validates ID token signatures against 
 JWKS endpoint. The approach is taken from `microsoft/moodle-local_o365` (`lib.php`, JWKS
 fetch for the Teams tab flow), where it is already in production but implemented for a
 different context; here it is adapted to the regular authorization code flow. JWKS keys
-are cached through the Moodle cache API with a configurable TTL. Covered by
+are cached through the Moodle cache API with a fixed 24-hour TTL (`db/caches.php`). Covered by
 `tests/idtoken_validator_test.php`.
+
+## Before deploying to a target instance
+
+Usually a fresh install; occasionally an upgrade of an existing `auth_oidc`. Check:
+
+- **PKCE** — upgrade only: confirm the IdP accepts `code_challenge` first, or disable
+  `enablepkce`. Irrelevant on a fresh install (IdP is configured for it from the start).
+- **ID token signature verification** — either case: `verifyidtokensignature` defaults
+  off, needs `jwksuri` + `idtokenissuer` set first (no sensible default, IdP-specific).
+  Settings page refuses to enable it without both.
+- **Companion plugins** — upgrade only, and rare: this fork adds `get()` to
+  `httpclientinterface`. A pre-existing plugin implementing that interface directly (e.g.
+  `local_o365`) hits a PHP fatal until updated; grep for
+  `implements httpclientinterface`/`extends oidcclient` before upgrading such a site.
 
 ## Source
 
