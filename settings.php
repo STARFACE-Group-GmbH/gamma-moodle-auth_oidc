@@ -33,6 +33,7 @@ use auth_oidc\adminsetting\auth_oidc_admin_setting_redirecturi;
 use auth_oidc\adminsetting\auth_oidc_admin_setting_secretexpiryrecipients;
 use auth_oidc\adminsetting\auth_oidc_admin_setting_section_heading;
 use auth_oidc\adminsetting\auth_oidc_admin_setting_stateexpiry;
+use auth_oidc\adminsetting\auth_oidc_admin_setting_verifyidtokensignature;
 use auth_oidc\utils;
 use core\url;
 
@@ -266,7 +267,7 @@ if ($hassiteconfig) {
     ));
 
     // ID token signature verification.
-    $applicationsettings->add(new admin_setting_configcheckbox(
+    $applicationsettings->add(new auth_oidc_admin_setting_verifyidtokensignature(
         'auth_oidc/verifyidtokensignature',
         get_string('verifyidtokensignature', 'auth_oidc'),
         get_string('verifyidtokensignature_help', 'auth_oidc'),

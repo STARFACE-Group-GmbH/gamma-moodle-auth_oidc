@@ -46,13 +46,14 @@ class idtoken_validator {
 
         $jwksuri = trim($config->jwksuri ?? '');
         $clientid = trim($config->clientid ?? '');
-        if ($jwksuri === '' || $clientid === '') {
+        $issuer = trim($config->idtokenissuer ?? '');
+        if ($jwksuri === '' || $clientid === '' || $issuer === '') {
             throw new moodle_exception('errorjwtverificationnotconfigured', 'auth_oidc');
         }
 
         [$payload, $header] = self::decode_with_jwks($encodedtoken, $jwksuri, $httpclient);
         self::validate_audience($payload, $clientid);
-        self::validate_issuer($payload, $config->idtokenissuer ?? '');
+        self::validate_issuer($payload, $issuer);
 
         $token = new jwt();
         $token->set_header(self::object_to_array($header));
@@ -116,6 +117,10 @@ class idtoken_validator {
     /**
      * Decode a JWT using a raw JWKS document.
      *
+     * ES256/PS256 keys are only recognised correctly when the IdP's JWKS entry declares its
+     * own "alg"; a JWK published without one is assumed to be RS256, so an ES256 or PS256
+     * token signed by such a key fails verification. Keycloak always declares "alg".
+     *
      * @param string $encodedtoken Encoded ID token.
      * @param string $keyset Raw JWKS JSON.
      * @return array Verified token payload and header.
@@ -159,16 +164,13 @@ class idtoken_validator {
     }
 
     /**
-     * Write validation debug details to Moodle debug logging and PHP error log.
+     * Write validation debug details to Moodle debug logging.
      *
      * @param string $message Debug message.
      * @param array $context Safe debug context.
      */
     protected static function debug_validation_message(string $message, array $context): void {
         utils::debug($message, __METHOD__, $context);
-        if ((bool)get_config('auth_oidc', 'debugmode')) {
-            error_log('auth_oidc: ' . $message . ' ' . json_encode($context));
-        }
     }
 
     /**
@@ -240,18 +242,22 @@ class idtoken_validator {
         if (!is_array($audiences) || !in_array($clientid, $audiences, true)) {
             throw new moodle_exception('errorjwtinvalidaudience', 'auth_oidc');
         }
+
+        // OIDC Core 3.1.3.7 (10): a multi-valued aud requires an azp claim matching the client ID.
+        if (count($audiences) > 1 && ($payload->azp ?? null) !== $clientid) {
+            throw new moodle_exception('errorjwtinvalidaudience', 'auth_oidc');
+        }
     }
 
     /**
-     * Validate issuer when configured.
+     * Validate the token issuer against the expected issuer.
      *
      * @param \stdClass $payload Verified payload.
-     * @param string|null $issuer Expected issuer.
+     * @param string $issuer Expected issuer.
      * @throws moodle_exception
      */
-    protected static function validate_issuer(\stdClass $payload, ?string $issuer): void {
-        $issuer = trim($issuer ?? '');
-        if ($issuer !== '' && ($payload->iss ?? '') !== $issuer) {
+    protected static function validate_issuer(\stdClass $payload, string $issuer): void {
+        if (($payload->iss ?? '') !== $issuer) {
             throw new moodle_exception('errorjwtinvalidissuer', 'auth_oidc');
         }
     }

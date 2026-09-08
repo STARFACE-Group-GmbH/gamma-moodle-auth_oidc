@@ -27,8 +27,6 @@ namespace auth_oidc;
 use auth_oidc\tests\mockhttpclient;
 use Firebase\JWT\JWT;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Tests idtoken_validator.
  *
@@ -166,6 +164,46 @@ final class idtoken_validator_test extends \advanced_testcase {
 
         $this->expectExceptionMessage('ID token audience validation failed.');
         idtoken_validator::validate($token, $this->config(), $this->httpclient($jwks));
+    }
+
+    /**
+     * Test a multi-valued audience without a matching azp claim fails.
+     *
+     * @covers \auth_oidc\idtoken_validator::validate
+     */
+    public function test_multi_audience_without_matching_azp_fails(): void {
+        [$token, $jwks] = $this->signed_token(['aud' => ['moodle-client', 'other-client']]);
+
+        $this->expectExceptionMessage('ID token audience validation failed.');
+        idtoken_validator::validate($token, $this->config(), $this->httpclient($jwks));
+    }
+
+    /**
+     * Test a multi-valued audience with a matching azp claim passes.
+     *
+     * @covers \auth_oidc\idtoken_validator::validate
+     */
+    public function test_multi_audience_with_matching_azp_passes(): void {
+        [$token, $jwks] = $this->signed_token([
+            'aud' => ['moodle-client', 'other-client'],
+            'azp' => 'moodle-client',
+        ]);
+
+        $result = idtoken_validator::validate($token, $this->config(), $this->httpclient($jwks));
+
+        $this->assertSame('user-subject', $result->claim('sub'));
+    }
+
+    /**
+     * Test verification is refused as unconfigured when no expected issuer is set.
+     *
+     * @covers \auth_oidc\idtoken_validator::validate
+     */
+    public function test_missing_issuer_config_fails(): void {
+        [$token, $jwks] = $this->signed_token();
+
+        $this->expectExceptionMessage(get_string('errorjwtverificationnotconfigured', 'auth_oidc'));
+        idtoken_validator::validate($token, $this->config(['idtokenissuer' => '']), $this->httpclient($jwks));
     }
 
     /**

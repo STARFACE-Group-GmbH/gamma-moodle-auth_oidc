@@ -556,9 +556,7 @@ class base {
      */
     protected function get_oidcclient() {
         global $CFG;
-        if (empty($this->httpclient) || !($this->httpclient instanceof \auth_oidc\httpclientinterface)) {
-            $this->httpclient = new \auth_oidc\httpclient();
-        }
+        $this->get_httpclient();
 
         if (!auth_oidc_is_setup_complete()) {
             throw new moodle_exception('errorauthnocredsandendpoints', 'auth_oidc');
