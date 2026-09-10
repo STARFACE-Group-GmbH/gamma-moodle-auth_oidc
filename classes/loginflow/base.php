@@ -556,7 +556,6 @@ class base {
      */
     protected function get_oidcclient() {
         global $CFG;
-        $this->get_httpclient();
 
         if (!auth_oidc_is_setup_complete()) {
             throw new moodle_exception('errorauthnocredsandendpoints', 'auth_oidc');
@@ -569,7 +568,7 @@ class base {
         $tokenresource = (isset($this->config->oidcresource)) ? $this->config->oidcresource : null;
         $scope = (isset($this->config->oidcscope)) ? $this->config->oidcscope : null;
 
-        $client = new oidcclient($this->httpclient);
+        $client = new oidcclient($this->get_httpclient());
         $client->setcreds($clientid, $clientsecret, $redirecturi, $tokenresource, $scope);
 
         $client->setendpoints(['auth' => $this->config->authendpoint, 'token' => $this->config->tokenendpoint]);

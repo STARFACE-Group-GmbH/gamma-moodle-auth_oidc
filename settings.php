@@ -28,6 +28,7 @@ defined('MOODLE_INTERNAL') || die();
 
 use auth_oidc\adminsetting\auth_oidc_admin_setting_endpoint;
 use auth_oidc\adminsetting\auth_oidc_admin_setting_iconselect;
+use auth_oidc\adminsetting\auth_oidc_admin_setting_idtokenvalidation_uri;
 use auth_oidc\adminsetting\auth_oidc_admin_setting_loginflow;
 use auth_oidc\adminsetting\auth_oidc_admin_setting_redirecturi;
 use auth_oidc\adminsetting\auth_oidc_admin_setting_verifyidtokensignature;
@@ -267,21 +268,23 @@ if ($hassiteconfig) {
     ));
 
     // JWKS endpoint.
-    $applicationsettings->add(new admin_setting_configtext(
+    $applicationsettings->add(new auth_oidc_admin_setting_idtokenvalidation_uri(
         'auth_oidc/jwksuri',
         get_string('jwksuri', 'auth_oidc'),
         get_string('jwksuri_help', 'auth_oidc'),
         '',
-        PARAM_URL
+        PARAM_URL,
+        'error_jwksuri_required'
     ));
 
     // Expected issuer.
-    $applicationsettings->add(new admin_setting_configtext(
+    $applicationsettings->add(new auth_oidc_admin_setting_idtokenvalidation_uri(
         'auth_oidc/idtokenissuer',
         get_string('idtokenissuer', 'auth_oidc'),
         get_string('idtokenissuer_help', 'auth_oidc'),
         '',
-        PARAM_URL
+        PARAM_URL,
+        'error_idtokenissuer_required'
     ));
 
     // Other parameters heading.

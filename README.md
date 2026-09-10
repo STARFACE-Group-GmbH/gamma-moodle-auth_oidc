@@ -21,8 +21,10 @@ measure, and a label so it is obvious which plugin an instance is running.
 substitution, so the plugin can be told apart from an unmodified upstream install in the
 plugin and authentication lists.
 
-Only actually shows in English: any other installed language pack ships its own AMOS
-`auth_oidc` translation, which overrides ours.
+Only actually shows in English on instances with the German language pack installed: the
+pack ships its own AMOS translation for `pluginname`, which overrides ours. Our other
+German strings are unaffected — the pack carries no translation for the keys this fork
+adds.
 
 **2. PKCE S256**
 RFC 7636 PKCE added to the authorization code flow (`classes/oidcclient.php`,
@@ -59,7 +61,10 @@ Usually a fresh install; occasionally an upgrade of an existing `auth_oidc`. Che
   `enablepkce`. Irrelevant on a fresh install (IdP is configured for it from the start).
 - **ID token signature verification** — either case: `verifyidtokensignature` defaults
   off, needs `jwksuri` + `idtokenissuer` set first (no sensible default, IdP-specific).
-  Settings page refuses to enable it without both.
+  Settings page refuses to enable it without both, and equally refuses to clear either of
+  them while it stays enabled. Upgrade only: if the target already had verification
+  enabled under an older version where `idtokenissuer` was optional, confirm it is set
+  before deploying — otherwise every login fails immediately.
 - **Companion plugins** — upgrade only, and rare: this fork adds `get()` to
   `httpclientinterface`. A pre-existing plugin implementing that interface directly (e.g.
   `local_o365`) hits a PHP fatal until updated; grep for
@@ -140,8 +145,8 @@ incrementing it — **counting from `.50` upwards**, because upstream uses low d
 steps itself (`2024100720.01`, `2024100730.01`) and would collide with us:
 
 ```php
-$plugin->version = 2024100735.51;      // upstream 2024100735 plus Gamma step 51
-$plugin->release = '4.5.7+gamma2';
+$plugin->version = 2024100735.52;      // upstream 2024100735 plus Gamma step 52
+$plugin->release = '4.5.7+gamma3';
 ```
 
 Upstream's next number (`2024100736`) stays strictly greater, so ordering survives a
@@ -155,11 +160,19 @@ if ($oldversion < 2024100735.50) {
 }
 ```
 
-Steps used so far on this line: `.50` PKCE (`4.5.7+gamma1`), `.51` ID token signature
-verification (`4.5.7+gamma2`).
+Numbers used so far on this line:
+
+| Version | Release | Upgrade step | Change |
+|---------|---------|--------------|--------|
+| `.50` | `4.5.7+gamma1` | yes | PKCE (new `auth_oidc_state.codeverifier` column) |
+| `.51` | `4.5.7+gamma2` | yes | ID token signature verification (new JWKS cache) |
+| `.52` | `4.5.7+gamma3` | no | Fork documentation and the ID token validation URI guard |
 
 Purely additive changes without database or cache definitions — language strings, admin
-settings — do not need a version bump.
+settings — need no upgrade step, but still get a version bump whenever the running build
+has to be identifiable from the outside, which in practice is every release we hand to
+someone else. A bump without an upgrade step costs nothing: Moodle just records the new
+version.
 
 ## Upstream cycle (pulling a Microsoft fix)
 
