@@ -76,7 +76,7 @@ Usually a fresh install; occasionally an upgrade of an existing `auth_oidc`. Che
 |---|---|
 | Original repository | https://github.com/microsoft/moodle-auth_oidc |
 | **Moodle we run** | **4.5.11** — the Academy's installation, and the version this fork targets |
-| Base of our release line | tag `v4.5.7` (on upstream branch `MOODLE_405_STABLE`) |
+| Base of our release line | tag `v4.5.8` (on upstream branch `MOODLE_405_STABLE`); rebased from `v4.5.7` in September 2026, see below |
 | Minimum Moodle required by the plugin | 4.5 (`$plugin->requires = 2024100700`) |
 
 Upstream `master` requires Moodle 5.2 or later and is therefore not usable for us,
@@ -98,7 +98,7 @@ which is why our release line branches off the 4.5 tag.
 > later. There is deliberately no `main`; see below.
 
 ```
-upstream/MOODLE_405_STABLE ──v4.5.7──┐
+upstream/MOODLE_405_STABLE ──v4.5.8──┐
                                      │
                      release/4.5 ────┴──●──●──●──▶   our changes, release tags live here
                                         ┊  ┊  ┊
@@ -110,14 +110,14 @@ upstream/MOODLE_502_STABLE ──v5.2.0──┐
 ```
 
 One release branch per Moodle line, named after that line. `release/4.5` is based on tag
-`v4.5.7`, carries all our commits, is the branch the local dev server mounts, and is the
+`v4.5.8`, carries all our commits, is the branch the local dev server mounts, and is the
 branch the partner builds from. A second line is only created when it is actually needed —
 see "Adopting a new Moodle line" below for the exact procedure.
 
-There is deliberately **no `main`**. Upstream's stable lines diverge — `v4.5.7` is not an
+There is deliberately **no `main`**. Upstream's stable lines diverge — `v4.5.8` is not an
 ancestor of upstream `master`, and `MOODLE_405_STABLE` was never merged into
 `MOODLE_502_STABLE`; their common ancestor is 4.5.2. A branch that merged both lines
-would drag upstream's 4.5.3–4.5.7 changes into the 5.2 line and conflict in
+would drag upstream's 4.5.3–4.5.8 changes into the 5.2 line and conflict in
 `version.php`, `db/upgrade.php` and the language files. Carrying our work across Moodle
 lines is therefore a cherry-pick operation, not a merge — the same approach Moodle core
 itself uses.
@@ -145,18 +145,18 @@ incrementing it — **counting from `.50` upwards**, because upstream uses low d
 steps itself (`2024100720.01`, `2024100730.01`) and would collide with us:
 
 ```php
-$plugin->version = 2024100735.52;      // upstream 2024100735 plus Gamma step 52
-$plugin->release = '4.5.7+gamma3';
+$plugin->version = 2024100740.52;      // upstream 2024100740 plus Gamma step 52
+$plugin->release = '4.5.8+gamma3';
 ```
 
-Upstream's next number (`2024100736`) stays strictly greater, so ordering survives a
+Upstream's next number (`2024100741`) stays strictly greater, so ordering survives a
 merge and the resulting conflict is trivial to resolve. Upgrade steps guard on the same
 value:
 
 ```php
-if ($oldversion < 2024100735.50) {
+if ($oldversion < 2024100740.50) {
     // ...
-    upgrade_plugin_savepoint(true, 2024100735.50, 'auth', 'oidc');
+    upgrade_plugin_savepoint(true, 2024100740.50, 'auth', 'oidc');
 }
 ```
 
@@ -164,9 +164,16 @@ Numbers used so far on this line:
 
 | Version | Release | Upgrade step | Change |
 |---------|---------|--------------|--------|
-| `.50` | `4.5.7+gamma1` | yes | PKCE (new `auth_oidc_state.codeverifier` column) |
-| `.51` | `4.5.7+gamma2` | yes | ID token signature verification (new JWKS cache) |
-| `.52` | `4.5.7+gamma3` | no | Fork documentation and the ID token validation URI guard |
+| `.50` | `4.5.8+gamma1` | yes | PKCE (new `auth_oidc_state.codeverifier` column) |
+| `.51` | `4.5.8+gamma2` | yes | ID token signature verification (new JWKS cache) |
+| `.52` | `4.5.8+gamma3` | no | Fork documentation and the ID token validation URI guard |
+
+The line was rebased from upstream `v4.5.7` onto `v4.5.8` in September 2026 and the
+Gamma steps renumbered from `2024100735.5x` to `2024100740.5x`. A site still running a
+`2024100735.5x` build upgrades through upstream's own 4.5.8 steps (`.04`–`.08`) first
+and then through the Gamma `.50` step, which is guarded by `field_exists()` and therefore a
+no-op where the `codeverifier` column already exists. A site on stock `2024100740` gets
+the column from that same step.
 
 Purely additive changes without database or cache definitions — language strings, admin
 settings — need no upgrade step, but still get a version bump whenever the running build
@@ -210,7 +217,7 @@ git switch -c release/5.2 v5.2.0
 **3. Cherry-pick our commits forward, oldest first.** `-x` records the original hash in
 the message, so both lines stay traceable and it is obvious which Gamma change is which.
 ```bash
-git log --oneline --reverse v4.5.7..release/4.5      # our commits, in order
+git log --oneline --reverse v4.5.8..release/4.5      # our commits, in order
 git cherry-pick -x <hash> <hash> <hash> ...
 ```
 
@@ -240,7 +247,7 @@ the Moodle upgrade. The Gamma changes are confined to `classes/oidcclient.php`,
 `auth.php`, `settings.php`, `db/*` and the language files — a diff against upstream shows
 the full surface:
 ```bash
-git diff v4.5.7..release/4.5 --stat
+git diff v4.5.8..release/4.5 --stat
 ```
 
 ## Building a release
