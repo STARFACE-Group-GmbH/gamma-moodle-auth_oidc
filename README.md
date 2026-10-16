@@ -87,7 +87,7 @@ which is why our release line branches off the 4.5 tag.
 | Remote | URL | Role |
 |---|---|---|
 | `origin` | `git@gitlab.com:gamma-communications/moodle_academy/gamma-moodle-auth_oidc.git` | company repository, canonical state, development happens here |
-| `gh-partner` | `git@github.com:heinzeale/gamma-moodle-auth_oidc.git` | private GitHub repository; access for the Moodle partner (build and review) |
+| `gh-partner` | `git@github.com:STARFACE-Group-GmbH/gamma-moodle-auth_oidc.git` | public GitHub repository; source for the Moodle partner (build and review) |
 | `upstream` | `https://github.com/microsoft/moodle-auth_oidc.git` | Microsoft, **fetch only** — the push URL is set to `DISABLED` |
 
 ## Branch model
